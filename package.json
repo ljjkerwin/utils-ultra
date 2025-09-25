@@ -1,0 +1,52 @@
+{
+  "name": "utils-ultra",
+  "version": "1.0.0",
+  "description": "A comprehensive JavaScript utility library with TypeScript support",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "clean": "rimraf dist",
+    "prepare": "pnpm run clean && pnpm run build",
+    "dev": "pnpm run build:watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
+  },
+  "keywords": [
+    "utils",
+    "utility",
+    "javascript",
+    "typescript",
+    "functions",
+    "helpers"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.5",
+    "@types/node": "^20.6.3",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "jest": "^29.7.0",
+    "rimraf": "^5.0.1",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.5.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/utils-ultra.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/utils-ultra/issues"
+  },
+  "homepage": "https://github.com/yourusername/utils-ultra#readme"
+}
