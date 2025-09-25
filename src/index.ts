@@ -7,5 +7,8 @@
 // 对象工具
 export * from './demo';
 
+// URL工具
+export * from './url';
+
 // 版本信息
 export const version = '1.0.0';
