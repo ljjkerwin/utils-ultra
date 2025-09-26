@@ -1,6 +1,8 @@
 import queryString from 'query-string';
 
 
+type QueryType = Record<string, any>
+
 /**
  * 解析search字符串
  * @param {string} search 
@@ -68,7 +70,7 @@ export type UrlObjType = {
   /** 查询字符串，包含 '?' */
   search: string;
   /** 解析后的查询对象 */
-  query: Record<string, any>;
+  query: QueryType;
   /** 哈希部分，包含 '#' */
   hash: string;
   /** 哈希中的路径部分 */
@@ -76,7 +78,7 @@ export type UrlObjType = {
   /** 哈希中的查询字符串部分 */
   hashSearch: string;
   /** 哈希中解析后的查询对象 */
-  hashQuery: Record<string, any>;
+  hashQuery: QueryType;
 };
 
 export function parseUrl(url: string): UrlObjType {
@@ -118,7 +120,7 @@ export function parseUrl(url: string): UrlObjType {
     
     // 解析查询参数
     if (urlObj.search) {
-      urlObj.query = parseSearch(urlObj.search) as Record<string, string>;
+      urlObj.query = parseSearch(urlObj.search);
     }
     
     // 解析 hash 中的路径和查询参数
@@ -130,7 +132,7 @@ export function parseUrl(url: string): UrlObjType {
       
       if (hashParts.length > 1) {
         urlObj.hashSearch = '?' + hashParts.slice(1).join('?');
-        urlObj.hashQuery = parseSearch(urlObj.hashSearch) as Record<string, string>;
+        urlObj.hashQuery = parseSearch(urlObj.hashSearch);
       }
     }
   } catch (error) {
@@ -139,4 +141,94 @@ export function parseUrl(url: string): UrlObjType {
   }
 
   return urlObj;
+}
+
+
+/**
+ * 修改url中的查询参数
+ * @param {string} url 原始URL字符串
+ * @param {QueryType | null} query 主查询参数，传入null时删除所有主查询参数，字段传入undefined时删除该字段
+ * @param {QueryType | null} hashQuery hash查询参数，传入null时删除所有hash查询参数，字段传入undefined时删除该字段
+ * @return {string} 修改后的URL字符串
+ * 
+ * @example
+ * ```typescript
+ * // 添加或更新参数
+ * modifyUrlQuery('https://example.com?old=1', { new: 'value', old: '2' });
+ * // 结果: 'https://example.com?old=2&new=value'
+ * 
+ * // 删除特定字段（传入undefined）
+ * modifyUrlQuery('https://example.com?remove=1&keep=2', { remove: undefined });
+ * // 结果: 'https://example.com?keep=2'
+ * 
+ * // 删除所有主查询参数（传入null）
+ * modifyUrlQuery('https://example.com?param1=1&param2=2', null);
+ * // 结果: 'https://example.com'
+ * 
+ * // 删除所有hash查询参数（传入null）
+ * modifyUrlQuery('https://example.com#/path?param=1', undefined, null);
+ * // 结果: 'https://example.com#/path'
+ * ```
+ */
+export function modifyUrlQuery(url: string, query?: QueryType | null, hashQuery?: QueryType | null) {
+  const urlObj = parseUrl(url);
+
+  let isSearchChanged = false;
+
+  if (query !== undefined) {
+    if (query === null) {
+      // 传入null时，删除所有主查询参数
+      urlObj.query = {};
+    } else {
+      urlObj.query = {
+        ...urlObj.query,
+        ...query
+      };
+    }
+    urlObj.search = queryString.stringify(urlObj.query);
+    if (urlObj.search) {
+      urlObj.search = '?' + urlObj.search;
+    }
+    isSearchChanged = true;
+  }
+
+  let isHashSearchChanged = false;
+  
+  if (hashQuery !== undefined) {
+    if (hashQuery === null) {
+      // 传入null时，删除所有hash查询参数
+      urlObj.hashQuery = {};
+    } else {
+      urlObj.hashQuery = {
+        ...urlObj.hashQuery,
+        ...hashQuery
+      };
+    }
+    urlObj.hashSearch = queryString.stringify(urlObj.hashQuery);
+    if (urlObj.hashSearch) {
+      urlObj.hashSearch = '?' + urlObj.hashSearch;
+    }
+    urlObj.hash = urlObj.hashPathname + urlObj.hashSearch;
+    if (urlObj.hash) {
+      urlObj.hash = '#' + urlObj.hash;
+    }
+    isHashSearchChanged = true;
+  }
+
+  // 重新组装url
+  if (isSearchChanged || isHashSearchChanged) {
+    // 构建认证信息部分
+    let auth = '';
+    if (urlObj.username || urlObj.password) {
+      auth = urlObj.username;
+      if (urlObj.password) {
+        auth += ':' + urlObj.password;
+      }
+      auth += '@';
+    }
+    
+    urlObj.href = urlObj.protocol + '//' + auth + urlObj.host + urlObj.pathname + urlObj.search + urlObj.hash;
+  }
+
+  return urlObj.href;
 }

@@ -31,5 +31,33 @@ module.exports = {
     }
     
     return result;
+  },
+  
+  stringify: function(obj, options = {}) {
+    if (!obj || typeof obj !== 'object') {
+      return '';
+    }
+    
+    const pairs = [];
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (value === null || value === undefined) {
+        continue;
+      }
+      
+      const encodedKey = encodeURIComponent(key);
+      
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item !== null && item !== undefined) {
+            pairs.push(encodedKey + '=' + encodeURIComponent(item));
+          }
+        }
+      } else {
+        pairs.push(encodedKey + '=' + encodeURIComponent(value));
+      }
+    }
+    
+    return pairs.join('&');
   }
 };
