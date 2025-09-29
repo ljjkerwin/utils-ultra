@@ -14,7 +14,7 @@ export function parseSearch(search: string) {
 
 
 /**
- * 解析url字符串，同时支持scheme的解析
+ * 解析url字符串，支持广义的url片段
  * @param {string} url
  * @return {object} 解析后的url对象
  * @example
@@ -103,49 +103,108 @@ export function parseUrl(url: string): UrlObjType {
     hashQuery: {}
   }
 
-  try {
-    // 使用原生 URL API 进行基础解析
-    const parsedUrl = new URL(url);
+  // 使用正则表达式解析URL
+    // URL正则模式：^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?$
+    // 分组说明：
+    // $1 = 协议部分 (如 "https:")
+    // $2 = 协议名 (如 "https")
+    // $3 = "//authority" 部分 
+    // $4 = authority 部分 (如 "user:pass@host:port")
+    // $5 = 路径部分 (如 "/path")
+    // $6 = "?query" 部分
+    // $7 = query 部分 (不包含?)
+    // $8 = "#hash" 部分
+    // $9 = hash 部分 (不包含#)
+    const urlRegex = /^(([^:/?#]+):)?(\/\/([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?$/;
+    const match = url.match(urlRegex);
     
-    urlObj.protocol = parsedUrl.protocol;
-    urlObj.username = parsedUrl.username;
-    urlObj.password = parsedUrl.password;
-    urlObj.origin = parsedUrl.origin;
-    urlObj.host = parsedUrl.host;
-    urlObj.hostname = parsedUrl.hostname;
-    urlObj.port = parsedUrl.port;
-    urlObj.pathname = parsedUrl.pathname;
-    urlObj.search = parsedUrl.search;
-    urlObj.hash = parsedUrl.hash;
-    
-    // 解析查询参数
-    if (urlObj.search) {
-      urlObj.query = parseSearch(urlObj.search);
-    }
-    
-    // 解析 hash 中的路径和查询参数
-    if (urlObj.hash) {
-      const hashContent = urlObj.hash.slice(1); // 去掉 '#'
-      const hashParts = hashContent.split('?');
+    if (match) {
+      // 检查是否是有效的URL格式
+      // 有效URL应该有协议+主机，或者是相对路径(以/开头)，或者是协议相对URL(以//开头)
+      const hasProtocol = !!match[1];
+      const hasAuthority = !!match[3];
+      const pathname = match[5] || '';
+      const isRelativePath = pathname.startsWith('/');
+      const isProtocolRelative = url.startsWith('//');
       
-      urlObj.hashPathname = hashParts[0] || '';
+      // 如果URL既没有协议，也没有authority，也不是相对路径或协议相对URL，
+      // 那么认为这是一个无效的URL
+      if (!hasProtocol && !hasAuthority && !isRelativePath && !isProtocolRelative) {
+        // 可能是无效URL，比如 "not-a-valid-url"
+        return urlObj;
+      }
       
-      if (hashParts.length > 1) {
-        urlObj.hashSearch = '?' + hashParts.slice(1).join('?');
-        urlObj.hashQuery = parseSearch(urlObj.hashSearch);
+      // 解析协议
+      urlObj.protocol = match[1] || '';
+      
+      // 解析authority部分 (user:pass@hostname:port)
+      const authority = match[4] || '';
+      if (authority) {
+        // 解析认证信息和主机信息
+        // authority格式: [user[:password]@]host[:port]
+        const authRegex = /^(?:([^:@]+)(?::([^@]*))?@)?(.+)$/;
+        const authMatch = authority.match(authRegex);
+        
+        if (authMatch) {
+          urlObj.username = authMatch[1] || '';
+          urlObj.password = authMatch[2] || '';
+          
+          // 解析主机和端口
+          const hostPart = authMatch[3] || '';
+          // 处理IPv6地址 [::1]:8080 或普通地址 localhost:8080
+          const hostPortRegex = /^\[([^\]]+)\](?::(\d+))?$|^([^:]+)(?::(\d+))?$/;
+          const hostPortMatch = hostPart.match(hostPortRegex);
+          
+          if (hostPortMatch) {
+            // IPv6地址或普通地址
+            urlObj.hostname = hostPortMatch[1] || hostPortMatch[3] || '';
+            urlObj.port = hostPortMatch[2] || hostPortMatch[4] || '';
+            urlObj.host = urlObj.port ? `${urlObj.hostname}:${urlObj.port}` : urlObj.hostname;
+          }
+        }
+      }
+      
+      // 解析路径
+      urlObj.pathname = pathname;
+      // 如果有协议和主机但没有路径，默认为'/'
+      if (urlObj.protocol && urlObj.hostname && !urlObj.pathname) {
+        urlObj.pathname = '/';
+      }
+      
+      // 解析查询字符串
+      if (match[6]) {
+        urlObj.search = match[6];
+        urlObj.query = parseSearch(match[7] || '');
+      }
+      
+      // 解析hash
+      if (match[8]) {
+        urlObj.hash = match[8];
+        const hashContent = match[9] || '';
+        
+        // 解析hash中的路径和查询参数
+        const hashParts = hashContent.split('?');
+        urlObj.hashPathname = hashParts[0] || '';
+        
+        if (hashParts.length > 1) {
+          urlObj.hashSearch = '?' + hashParts.slice(1).join('?');
+          urlObj.hashQuery = parseSearch(urlObj.hashSearch);
+        }
+      }
+      
+      // 构建origin
+      if (urlObj.protocol && urlObj.hostname) {
+        urlObj.origin = urlObj.protocol + '//' + urlObj.host;
       }
     }
-  } catch (error) {
-    // 如果 URL 无效，保持默认值
-    // console.warn('Invalid URL:', url, error);
-  }
+
 
   return urlObj;
 }
 
 
 /**
- * 修改url中的查询参数
+ * 修改url中的查询参数，支持url片段
  * @param {string} url 原始URL字符串
  * @param {QueryType | null} query 主查询参数，传入null时删除所有主查询参数，字段传入undefined时删除该字段
  * @param {QueryType | null} hashQuery hash查询参数，传入null时删除所有hash查询参数，字段传入undefined时删除该字段
@@ -153,6 +212,10 @@ export function parseUrl(url: string): UrlObjType {
  * 
  * @example
  * ```typescript
+ * // url不是完整url的
+ * modifyUrlQuery('/home#/path?param=1', undefined, { param2: 2 });
+ * // 结果: /home#/path?param=1&param2=2'
+ * 
  * // 添加或更新参数
  * modifyUrlQuery('https://example.com?old=1', { new: 'value', old: '2' });
  * // 结果: 'https://example.com?old=2&new=value'
@@ -217,6 +280,12 @@ export function modifyUrlQuery(url: string, query?: QueryType | null, hashQuery?
 
   // 重新组装url
   if (isSearchChanged || isHashSearchChanged) {
+    let newUrl = '';
+
+    if (urlObj.protocol) {
+      newUrl += urlObj.protocol + '//';
+    }
+
     // 构建认证信息部分
     let auth = '';
     if (urlObj.username || urlObj.password) {
@@ -226,8 +295,13 @@ export function modifyUrlQuery(url: string, query?: QueryType | null, hashQuery?
       }
       auth += '@';
     }
-    
-    urlObj.href = urlObj.protocol + '//' + auth + urlObj.host + urlObj.pathname + urlObj.search + urlObj.hash;
+    newUrl += auth;
+    newUrl += urlObj.host;
+    newUrl += urlObj.pathname;
+    newUrl += urlObj.search;
+    newUrl += urlObj.hash;
+
+    urlObj.href = newUrl;
   }
 
   return urlObj.href;
