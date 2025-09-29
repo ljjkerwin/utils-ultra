@@ -4,11 +4,9 @@
  * 导出所有工具函数
  */
 
-// 对象工具
 export * from './demo';
-
-// URL工具
 export * from './parseQueryString';
+export * from './parseUrl';
 
 // 版本信息
 export const version = '1.0.0';
