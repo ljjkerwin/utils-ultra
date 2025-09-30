@@ -7,6 +7,7 @@
 export * from './demo';
 export * from './parseQueryString';
 export * from './parseUrl';
+export * from './modifyUrlQuery';
 
 // 版本信息
 export const version = '1.0.0';
