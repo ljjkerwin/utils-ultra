@@ -3,8 +3,6 @@
  * 
  * 导出所有工具函数
  */
-
-export * from './demo';
 export * from './parseQueryString';
 export * from './parseUrl';
 export * from './modifyUrlQuery';
